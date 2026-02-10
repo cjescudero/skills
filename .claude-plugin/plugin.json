@@ -1,0 +1,13 @@
+{
+  "name": "my-skills",
+  "description": "Skills library personalizada para workflows de desarrollo con agentes",
+  "version": "0.1.0",
+  "author": {
+    "name": "Your Name",
+    "email": "you@example.com"
+  },
+  "homepage": "https://github.com/your-user/my-skills",
+  "repository": "https://github.com/your-user/my-skills",
+  "license": "MIT",
+  "keywords": ["skills", "agents", "workflows", "development"]
+}

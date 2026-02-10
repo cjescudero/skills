@@ -1,0 +1,20 @@
+{
+  "name": "my-skills-dev",
+  "description": "Marketplace de desarrollo para tu libreria de skills",
+  "owner": {
+    "name": "Your Name",
+    "email": "you@example.com"
+  },
+  "plugins": [
+    {
+      "name": "my-skills",
+      "description": "Skills library personalizada para workflows de desarrollo con agentes",
+      "version": "0.1.0",
+      "source": "./",
+      "author": {
+        "name": "Your Name",
+        "email": "you@example.com"
+      }
+    }
+  ]
+}
