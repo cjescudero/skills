@@ -8,6 +8,10 @@
 2. Live arrivals for one stop:
 - `GET https://itranvias.com/queryitr_v3.php?func=0&dato={stop_id}`
 
+## Invalid query patterns (do not use)
+
+- `queryitr_v3.php?mo=2&idP={stop_id}` -> typically returns plain text `errorS`.
+
 ## Payload keys used by this skill
 
 ### Catalog (`func=7`)

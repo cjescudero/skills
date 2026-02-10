@@ -1,6 +1,6 @@
 ---
-name: bus-arrivals-coruna-data
-description: Consultar llegadas de buses de A Coruna en formato solo datos con llamadas HTTP/HTTPS directas al API de iTranvias (sin MCP ni HTML). Usar cuando el usuario pida (1) llegadas de una parada, (2) llegada de un bus concreto en una parada concreta, o (3) proximas llegadas de una linea en una parada.
+name: "bus-arrivals-coruna-data"
+description: "Consultar llegadas de buses de A Coruna en formato solo datos con llamadas HTTP/HTTPS directas al API de iTranvias (sin MCP ni HTML). Usar cuando el usuario pida (1) llegadas de una parada, (2) llegada de un bus concreto en una parada concreta, o (3) proximas llegadas de una linea en una parada."
 ---
 
 # Bus Arrivals Coruna Data
@@ -9,6 +9,14 @@ description: Consultar llegadas de buses de A Coruna en formato solo datos con l
 
 Resolver consultas de buses llamando directamente al API remoto y parseando JSON.
 No usar tools MCP para esta skill.
+
+## Prerequisito de red (Claude)
+
+Si el entorno de Claude usa restricciones de salida, autorizar estos dominios antes de consultar:
+- `https://itranvias.com`
+- `http://itranvias.com` (fallback)
+
+Si no estan autorizados, la consulta puede fallar con `403` o como falso "problema de conectividad".
 
 ## API Contract
 
@@ -21,6 +29,9 @@ En operacion normal:
 - Usar solo `func=0` para consultas.
 - Resolver nombres de parada y linea con el catalogo local `assets/coruna_catalog.json`.
 - No filtrar por lineas de interes: devolver cualquier linea presente.
+- No usar parametros alternativos como `mo` o `idP`: para esta skill son invalidos.
+
+Si la API responde texto `errorS`, normalmente significa URL o parametros incorrectos (por ejemplo `mo=2&idP=42`).
 
 El catalogo local guarda por linea:
 - `commercial_name` (ej. `3`, `3A`).
@@ -50,9 +61,17 @@ El catalogo local guarda por linea:
 2. Resolver parada:
 - Preferir `--stop-id`.
 - Si llega nombre, resolver con catalogo local.
-3. Ejecutar `uv run python scripts/query_arrivals.py ...`.
-4. Devolver salida JSON parseada en respuesta breve.
-5. Si falta catalogo para resolver nombres, pedir `stop_id` o `line_id` o refrescar catalogo.
+3. Ejecutar SIEMPRE primero `uv run python scripts/query_arrivals.py ...`.
+4. No probar endpoints manuales ni alternativos antes del script (`queryService.php`, `mo`, `idP`, etc.).
+5. Devolver salida JSON parseada en respuesta breve.
+6. Si falta catalogo para resolver nombres, pedir `stop_id` o `line_id` o refrescar catalogo.
+7. Si se hace llamada HTTP directa, debe ser exactamente `queryitr_v3.php?func=0&dato={stop_id}`.
+
+## Regla de ejecucion rapida
+
+- Para consultas de usuario, hacer una sola llamada principal con el script.
+- Solo reintentar con `--request-profile browser --retry-403 6` si el primer intento devuelve `api_error`.
+- No ejecutar `curl` directo salvo depuracion explicita solicitada por el usuario.
 
 ## Commands (always uv)
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Bus Arrivals Coruna Data"
   short_description: "Consulta llegadas de buses por parada, bus y linea"
-  default_prompt: "Responde llegadas de buses de A Coruna con llamadas HTTP directas al API y salida de datos, sin MCP ni HTML."
+  default_prompt: "Usa $bus-arrivals-coruna-data; en Claude sandbox autoriza itranvias.com (https/http), ejecuta primero scripts/query_arrivals.py y no uses curl ni endpoints alternativos salvo depuracion explicita."
