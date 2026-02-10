@@ -4,6 +4,8 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import time
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -137,8 +139,64 @@ def _http_fallback_url(url: str) -> str:
 
 def _fetch_once(url: str, timeout_seconds: float, profile: str) -> str:
     request = Request(url, headers=_request_headers(profile))
-    with urlopen(request, timeout=timeout_seconds) as response:
-        return response.read().decode("utf-8", errors="replace")
+    try:
+        with urlopen(request, timeout=timeout_seconds) as response:
+            return response.read().decode("utf-8", errors="replace")
+    except HTTPError as exc:
+        # Some WAFs block urllib signatures. Retry once with curl keeping the same headers.
+        if exc.code in (403, 429):
+            return _fetch_once_curl(url=url, timeout_seconds=timeout_seconds, profile=profile)
+        raise
+
+
+def _fetch_once_curl(url: str, timeout_seconds: float, profile: str) -> str:
+    headers = _request_headers(profile)
+    command = [
+        "curl",
+        "--silent",
+        "--show-error",
+        "--location",
+        "--compressed",
+        "--max-time",
+        str(max(1, int(timeout_seconds))),
+        "--connect-timeout",
+        "5",
+        "-w",
+        "\n%{http_code}",
+        url,
+    ]
+    for key, value in headers.items():
+        command.extend(["-H", f"{key}: {value}"])
+
+    completed = subprocess.run(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if completed.returncode != 0:
+        stderr = (completed.stderr or "").strip() or "curl_failed"
+        raise URLError(stderr)
+
+    output = completed.stdout or ""
+    body, separator, status_text = output.rpartition("\n")
+    if not separator:
+        body = output
+        status_text = ""
+    status_code = _safe_int(status_text.strip())
+    if status_code is None:
+        return body
+    if 200 <= status_code < 300:
+        return body
+
+    raise HTTPError(url=url, code=status_code, msg=f"curl_http_{status_code}", hdrs=None, fp=None)
+
+
+def _retry_delay_seconds(status_code: int, attempt_index: int) -> float:
+    base = 0.6 if status_code == 403 else 1.0
+    delay = base * (2**attempt_index)
+    return min(delay, 4.0)
 
 
 def fetch_json(
@@ -167,13 +225,14 @@ def fetch_json(
     for target in attempt_urls:
         for profile in profiles:
             attempts = retry_403 + 1
-            for _ in range(attempts):
+            for attempt_index in range(attempts):
                 try:
                     body = _fetch_once(target, timeout_seconds=timeout_seconds, profile=profile)
                     break
                 except HTTPError as exc:
                     last_error = exc
-                    if exc.code in (403, 429):
+                    if exc.code in (403, 429) and attempt_index < attempts - 1:
+                        time.sleep(_retry_delay_seconds(exc.code, attempt_index))
                         continue
                     break
                 except (URLError, TimeoutError) as exc:
@@ -185,6 +244,11 @@ def fetch_json(
             break
 
     if body is None:
+        if isinstance(last_error, HTTPError) and last_error.code == 403:
+            raise BusApiError(
+                "api_forbidden_403: iTranvias rechazo la solicitud (posible bloqueo por IP/antibot). "
+                "Prueba --request-profile browser --retry-403 6 o ejecuta desde otra red."
+            )
         raise BusApiError(f"api_unavailable: {last_error}")
 
     try:

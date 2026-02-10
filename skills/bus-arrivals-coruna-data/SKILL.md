@@ -82,6 +82,13 @@ uv run python skills/bus-arrivals-coruna-data/scripts/query_arrivals.py --stop-i
 ```
 El script ya prueba `auto` por defecto (cabeceras normal + navegador y fallback https/http), pero este comando fuerza el perfil mas compatible.
 
+### Si falla en Claude/entornos cloud
+```bash
+uv run python skills/bus-arrivals-coruna-data/scripts/query_arrivals.py --stop-id 42 --request-profile browser --retry-403 6 --pretty
+```
+En algunos entornos cloud, iTranvias puede bloquear por IP (`403`) aunque la parada exista.
+El cliente ahora hace backoff y fallback con `curl` para mejorar compatibilidad, pero si el proveedor bloquea la IP de salida no hay solucion 100% desde codigo.
+
 ## Output Rules
 
 1. No generar HTML, CSS ni UI.
